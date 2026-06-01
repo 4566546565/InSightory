@@ -49,6 +49,11 @@ cookies.txt
 *-cookies.txt
 *-headers.txt
 *-body.txt
+temp_template.*
+test-tile.png
+screenshot.png
+*.pdf
+*_text.json
 
 # tile proxy (dev tool)
 /tile-proxy.mjs
