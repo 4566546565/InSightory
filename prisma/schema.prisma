@@ -1,0 +1,630 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                 String                 @id @default(cuid())
+  username           String                 @unique
+  email              String                 @unique
+  passwordHash       String
+  displayName        String
+  avatarUrl          String?
+  role               Role                   @default(STUDENT)
+  school             String?
+  grade              String?
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  activityLogs       ActivityLog[]
+  assignmentsCreated Assignment[]
+  assignmentSubs     AssignmentSubmission[]
+  bookmarks          Bookmark[]
+  taughtClasses      Class[]
+  classEnrollments   ClassEnrollment[]
+  pollsCreated       ClassroomPoll[]
+  comments           Comment[]
+  errorBookEntries   ErrorBookEntry[]
+  examPapers         ExamPaper[]
+  learningProgress   LearningProgress[]
+  notes              Note[]
+  pollVotes          PollVote[]
+  posts              Post[]
+  postVotes          PostVote[]
+  quizAttempts       QuizAttempt[]
+
+  @@index([role])
+}
+
+model Textbook {
+  id         String   @id @default(cuid())
+  title      String
+  subtitle   String?
+  volume     String
+  sortOrder  Int
+  coverImage String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  units      Unit[]
+}
+
+model Unit {
+  id          String   @id @default(cuid())
+  textbookId  String
+  title       String
+  unitNumber  Int
+  sortOrder   Int
+  description String?
+  createdAt   DateTime @default(now())
+  lessons     Lesson[]
+  textbook    Textbook @relation(fields: [textbookId], references: [id], onDelete: Cascade)
+
+  @@index([textbookId])
+}
+
+model Lesson {
+  id                 String           @id @default(cuid())
+  unitId             String
+  title              String
+  lessonNumber       Int
+  sortOrder          Int
+  content            Json?
+  learningObjectives String?
+  keyTerms           String?
+  summary            String?
+  createdAt          DateTime         @default(now())
+  knowledgePoints    KnowledgePoint[]
+  unit               Unit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId])
+}
+
+model KnowledgePoint {
+  id                   String                     @id @default(cuid())
+  lessonId             String
+  title                String
+  content              Json?
+  mindMapJson          Json?
+  keyConcepts          Json?
+  commonMisconceptions Json?
+  examRequirements     String?
+  difficulty           Int                        @default(1)
+  tags                 String[]
+  sortOrder            Int
+  createdAt            DateTime                   @default(now())
+  lesson               Lesson                     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questionLinks        KnowledgePointOnQuestion[]
+  relatedFrom          KnowledgePointRelation[]   @relation("RelatedFrom")
+  relatedTo            KnowledgePointRelation[]   @relation("RelatedTo")
+  stats                KnowledgePointStats?
+  learningProgress     LearningProgress[]
+
+  @@index([lessonId])
+}
+
+model KnowledgePointRelation {
+  id           String         @id @default(cuid())
+  sourceKpId   String
+  targetKpId   String
+  relationType String         @default("RELATED")
+  sourceKp     KnowledgePoint @relation("RelatedFrom", fields: [sourceKpId], references: [id], onDelete: Cascade)
+  targetKp     KnowledgePoint @relation("RelatedTo", fields: [targetKpId], references: [id], onDelete: Cascade)
+
+  @@unique([sourceKpId, targetKpId])
+}
+
+model Theme {
+  id          String         @id @default(cuid())
+  title       String
+  category    String
+  description String?
+  content     Json?
+  coverImage  String?
+  eraStart    String?
+  eraEnd      String?
+  sortOrder   Int            @default(0)
+  createdAt   DateTime       @default(now())
+  sections    ThemeSection[]
+}
+
+model ThemeSection {
+  id        String   @id @default(cuid())
+  themeId   String
+  title     String
+  content   Json?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  theme     Theme    @relation(fields: [themeId], references: [id], onDelete: Cascade)
+
+  @@index([themeId])
+}
+
+model SourceMaterial {
+  id                String     @id @default(cuid())
+  title             String
+  type              SourceType
+  era               String?
+  dynasty           String?
+  origin            String?
+  description       String?
+  content           Json?
+  imageUrls         String[]
+  analysisGuidance  String?
+  citationInfo      String?
+  knowledgePointIds String[]
+  tags              String[]
+  createdAt         DateTime   @default(now())
+}
+
+model TimelineEvent {
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  startDate       String
+  endDate         String?
+  category        String
+  era             String?
+  dynasty         String?
+  importance      Int      @default(1)
+  location        String?
+  relatedEventIds String[]
+  tags            String[]
+  imageUrl        String?
+  createdAt       DateTime @default(now())
+
+  @@index([category])
+  @@index([startDate])
+}
+
+model HistoricalMap {
+  id            String   @id @default(cuid())
+  title         String
+  description   String?
+  era           String?
+  startYear     Int?
+  endYear       Int?
+  centerLat     Float    @default(35)
+  centerLng     Float    @default(105)
+  defaultZoom   Int      @default(5)
+  baseLayerJson Json?
+  overlayJson   Json?
+  annotations   Json?
+  eventsJson    Json?
+  createdAt     DateTime @default(now())
+}
+
+model TodayInHistory {
+  id          String   @id @default(cuid())
+  month       Int
+  day         Int
+  year        Int?
+  title       String
+  description String?
+  category    String
+  imageUrl    String?
+  createdAt   DateTime @default(now())
+
+  @@index([month, day])
+}
+
+model Question {
+  id                  String                     @id @default(cuid())
+  type                QuestionType
+  difficulty          Int                        @default(1)
+  stem                Json
+  options             Json?
+  correctAnswer       Json
+  solution            Json?
+  examYear            Int?
+  examRegion          String?
+  source              String?
+  tags                String[]
+  timeEstimate        Int                        @default(60)
+  isPublished         Boolean                    @default(false)
+  createdAt           DateTime                   @default(now())
+  errorBookEntries    ErrorBookEntry[]
+  knowledgePointLinks KnowledgePointOnQuestion[]
+  quizAnswers         QuizAnswer[]
+
+  @@index([difficulty])
+  @@index([type])
+}
+
+model KnowledgePointOnQuestion {
+  questionId       String
+  knowledgePointId String
+  knowledgePoint   KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+  question         Question       @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@id([questionId, knowledgePointId])
+}
+
+model ExamPaper {
+  id                String       @id @default(cuid())
+  title             String
+  type              String
+  description       String?
+  totalScore        Int          @default(100)
+  timeLimit         Int?
+  questionIds       String[]
+  knowledgePointIds String[]
+  difficulty        Int          @default(1)
+  createdById       String?
+  isPublished       Boolean      @default(false)
+  createdAt         DateTime     @default(now())
+  assignments       Assignment[]
+  createdBy         User?        @relation(fields: [createdById], references: [id])
+}
+
+model ExamPaperQuestion {
+  id          String @id @default(cuid())
+  examPaperId String
+  questionId  String
+  sortOrder   Int    @default(0)
+  score       Int    @default(5)
+}
+
+model MicroLecture {
+  id                String   @id @default(cuid())
+  title             String
+  description       String?
+  videoUrl          String?
+  audioUrl          String?
+  duration          Int?
+  thumbnailUrl      String?
+  knowledgePointIds String[]
+  transcript        String?
+  createdAt         DateTime @default(now())
+}
+
+model ExtendedReading {
+  id                String   @id @default(cuid())
+  title             String
+  author            String?
+  content           Json?
+  source            String?
+  knowledgePointIds String[]
+  readingTime       Int?
+  coverImage        String?
+  createdAt         DateTime @default(now())
+}
+
+model ResourceRecommendation {
+  id          String   @id @default(cuid())
+  title       String
+  type        String
+  description String?
+  coverImage  String?
+  link        String?
+  rating      Float?
+  tags        String[]
+  createdAt   DateTime @default(now())
+}
+
+model StudyGuide {
+  id          String   @id @default(cuid())
+  title       String
+  category    String
+  description String?
+  content     Json?
+  tags        String[]
+  viewCount   Int      @default(0)
+  createdAt   DateTime @default(now())
+}
+
+model EssayFramework {
+  id            String   @id @default(cuid())
+  title         String
+  questionType  String
+  structureJson Json?
+  exampleJson   Json?
+  tips          String[]
+  createdAt     DateTime @default(now())
+}
+
+model LearningProgress {
+  id               String         @id @default(cuid())
+  userId           String
+  knowledgePointId String
+  status           ProgressStatus @default(NOT_STARTED)
+  confidenceLevel  Int?
+  timeSpent        Int            @default(0)
+  lastStudiedAt    DateTime?
+  knowledgePoint   KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+  user             User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, knowledgePointId])
+  @@index([userId])
+}
+
+model Note {
+  id         String   @id @default(cuid())
+  userId     String
+  targetType String
+  targetId   String
+  content    Json
+  isPublic   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, targetType, targetId])
+}
+
+model Bookmark {
+  id         String   @id @default(cuid())
+  userId     String
+  targetType String
+  targetId   String
+  createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, targetType, targetId])
+}
+
+model ErrorBookEntry {
+  id          String    @id @default(cuid())
+  userId      String
+  questionId  String
+  wrongAnswer Json
+  wrongCount  Int       @default(1)
+  lastWrongAt DateTime  @default(now())
+  isMastered  Boolean   @default(false)
+  masteryDate DateTime?
+  question    Question  @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, questionId])
+  @@index([userId])
+}
+
+model QuizAttempt {
+  id                String       @id @default(cuid())
+  userId            String
+  examPaperId       String?
+  mode              QuizMode
+  knowledgePointIds String[]
+  score             Int?
+  totalScore        Int          @default(0)
+  timeSpent         Int?
+  startedAt         DateTime     @default(now())
+  finishedAt        DateTime?
+  answers           QuizAnswer[]
+  user              User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, startedAt])
+}
+
+model QuizAnswer {
+  id            String      @id @default(cuid())
+  quizAttemptId String
+  questionId    String
+  userAnswer    Json
+  isCorrect     Boolean
+  score         Int         @default(0)
+  timeSpent     Int?
+  question      Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  quizAttempt   QuizAttempt @relation(fields: [quizAttemptId], references: [id], onDelete: Cascade)
+
+  @@index([quizAttemptId])
+}
+
+model Assignment {
+  id          String                 @id @default(cuid())
+  classId     String
+  teacherId   String
+  title       String
+  description String?
+  examPaperId String?
+  dueDate     DateTime?
+  isPublished Boolean                @default(false)
+  createdAt   DateTime               @default(now())
+  class       Class                  @relation(fields: [classId], references: [id], onDelete: Cascade)
+  examPaper   ExamPaper?             @relation(fields: [examPaperId], references: [id])
+  teacher     User                   @relation(fields: [teacherId], references: [id])
+  submissions AssignmentSubmission[]
+
+  @@index([classId])
+}
+
+model AssignmentSubmission {
+  id           String     @id @default(cuid())
+  assignmentId String
+  userId       String
+  content      Json?
+  fileUrls     String[]
+  score        Int?
+  feedback     String?
+  status       String     @default("SUBMITTED")
+  submittedAt  DateTime   @default(now())
+  gradedAt     DateTime?
+  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  user         User       @relation(fields: [userId], references: [id])
+
+  @@unique([assignmentId, userId])
+}
+
+model Class {
+  id          String            @id @default(cuid())
+  name        String
+  grade       String?
+  teacherId   String
+  schoolYear  String?
+  createdAt   DateTime          @default(now())
+  assignments Assignment[]
+  teacher     User              @relation(fields: [teacherId], references: [id])
+  enrollments ClassEnrollment[]
+  polls       ClassroomPoll[]
+
+  @@index([teacherId])
+}
+
+model ClassEnrollment {
+  id         String   @id @default(cuid())
+  classId    String
+  userId     String
+  enrolledAt DateTime @default(now())
+  class      Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, userId])
+}
+
+model Post {
+  id           String     @id @default(cuid())
+  userId       String
+  title        String
+  content      Json
+  category     String     @default("DISCUSSION")
+  tags         String[]
+  viewCount    Int        @default(0)
+  likeCount    Int        @default(0)
+  commentCount Int        @default(0)
+  isPinned     Boolean    @default(false)
+  isLocked     Boolean    @default(false)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  comments     Comment[]
+  user         User       @relation(fields: [userId], references: [id])
+  votes        PostVote[]
+
+  @@index([createdAt])
+  @@index([category])
+}
+
+model Comment {
+  id        String    @id @default(cuid())
+  postId    String
+  userId    String
+  content   Json
+  parentId  String?
+  likeCount Int       @default(0)
+  createdAt DateTime  @default(now())
+  parent    Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("CommentReplies")
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([postId])
+  @@index([parentId])
+}
+
+model PostVote {
+  id     String @id @default(cuid())
+  postId String
+  userId String
+  value  Int
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([postId, userId])
+}
+
+model ClassroomPoll {
+  id        String     @id @default(cuid())
+  classId   String
+  teacherId String
+  question  String
+  options   Json
+  isActive  Boolean    @default(true)
+  expiresAt DateTime?
+  createdAt DateTime   @default(now())
+  class     Class      @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher   User       @relation(fields: [teacherId], references: [id])
+  votes     PollVote[]
+
+  @@index([classId])
+}
+
+model PollVote {
+  id          String        @id @default(cuid())
+  pollId      String
+  userId      String
+  optionIndex Int
+  createdAt   DateTime      @default(now())
+  poll        ClassroomPoll @relation(fields: [pollId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id])
+
+  @@unique([pollId, userId])
+}
+
+model ActivityLog {
+  id           String   @id @default(cuid())
+  userId       String
+  activityType String
+  targetType   String?
+  targetId     String?
+  metadata     Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([createdAt])
+}
+
+model DailyStats {
+  id                   String   @id @default(cuid())
+  date                 DateTime @unique
+  totalVisits          Int      @default(0)
+  uniqueVisitors       Int      @default(0)
+  newRegistrations     Int      @default(0)
+  activeUsers          Int      @default(0)
+  questionsAnswered    Int      @default(0)
+  avgScore             Float?
+  topKnowledgePointIds String[]
+}
+
+model KnowledgePointStats {
+  id                   String         @id @default(cuid())
+  knowledgePointId     String         @unique
+  totalAttempts        Int            @default(0)
+  correctRate          Float?
+  avgTimeSpent         Int?
+  commonWrongAnswers   Json?
+  difficultyPerception Float?
+  knowledgePoint       KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum SourceType {
+  DOCUMENT
+  IMAGE
+  MAP
+  DATA_CHART
+  ARTIFACT
+}
+
+enum QuestionType {
+  MC
+  MULTI_SELECT
+  TRUE_FALSE
+  FILL_BLANK
+  SHORT_ANSWER
+  ESSAY
+}
+
+enum ProgressStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  MASTERED
+}
+
+enum QuizMode {
+  PRACTICE
+  DRILL
+  MOCK
+  HOMEWORK
+}

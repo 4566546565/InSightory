@@ -1,0 +1,54 @@
+# dependencies
+/node_modules
+/.pnp
+.pnp.js
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+.idea/
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local env files
+.env*.local
+.env
+.env.development
+.env.production
+
+# uploads
+/uploads
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# tile cache
+/.tile-cache/
+
+# prisma
+/prisma/migrations/
+
+# temp files
+/temp_docx/
+/pdf_content.txt
+cookies.txt
+*-cookies.txt
+*-headers.txt
+*-body.txt
+
+# tile proxy (dev tool)
+/tile-proxy.mjs
