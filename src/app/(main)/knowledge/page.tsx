@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import { getTextbooks } from "@/lib/cache";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -6,6 +6,7 @@ import { BookOpen, ChevronRight, Layers, BookMarked } from "lucide-react";
 import { DbErrorBanner } from "@/components/layout/db-error-banner";
 
 export const metadata = { title: "同步知识库" };
+export const revalidate = 3600;
 
 const textbookIcons: Record<string, string> = {
   "纲要（上）": "📜",
@@ -19,11 +20,7 @@ export default async function KnowledgePage() {
   let textbooks: Array<{ id: string; title: string; subtitle: string | null; volume: string; units: Array<{ _count: { lessons: number } }> }> = [];
   let dbError = false;
   try {
-    textbooks = await db.textbook.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: "asc" },
-      include: { units: { orderBy: { sortOrder: "asc" }, include: { _count: { select: { lessons: true } } } } },
-    });
+    textbooks = await getTextbooks();
   } catch { dbError = true; }
 
   return (

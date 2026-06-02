@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
+    "dev:turbo": "next dev --turbo",
     "dev:all": "node tile-proxy.mjs & next dev",
     "tile-proxy": "node tile-proxy.mjs",
     "build": "next build",

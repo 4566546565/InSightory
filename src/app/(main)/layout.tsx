@@ -2,8 +2,6 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { getCurrentUser } from "@/lib/auth-helpers";
 
-export const dynamic = "force-dynamic";
-
 export default async function MainLayout({ children }: { children: React.ReactNode }) {
   const user = await getCurrentUser();
 

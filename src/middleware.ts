@@ -1,46 +1,44 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
-import { getSessionFromCookie } from "@/lib/auth-edge";
+
+function hasSessionCookie(req: NextRequest): boolean {
+  return (
+    req.cookies.has("authjs.session-token") ||
+    req.cookies.has("__Secure-authjs.session-token")
+  );
+}
+
+const PROTECTED_PREFIXES = [
+  "/teacher",
+  "/admin",
+  "/profile",
+  "/practice",
+  "/knowledge",
+  "/timeline",
+  "/sources",
+  "/themes",
+  "/atlas",
+  "/lectures",
+  "/readings",
+  "/guides",
+  "/community",
+  "/chat",
+];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const user = await getSessionFromCookie(req.headers.get("cookie"));
+  const isLoggedIn = hasSessionCookie(req);
 
   // Homepage: logged in → go to knowledge, not logged in → go to login
   if (pathname === "/") {
-    if (user) {
-      return NextResponse.redirect(new URL("/knowledge", req.url));
-    }
-    return NextResponse.redirect(new URL("/login", req.url));
+    return NextResponse.redirect(
+      new URL(isLoggedIn ? "/knowledge" : "/login", req.url)
+    );
   }
 
-  // Protected routes - require login
-  if (
-    pathname.startsWith("/teacher") ||
-    pathname.startsWith("/admin") ||
-    pathname.startsWith("/profile") ||
-    pathname.startsWith("/practice") ||
-    pathname.startsWith("/knowledge") ||
-    pathname.startsWith("/timeline") ||
-    pathname.startsWith("/sources") ||
-    pathname.startsWith("/themes") ||
-    pathname.startsWith("/atlas") ||
-    pathname.startsWith("/lectures") ||
-    pathname.startsWith("/readings") ||
-    pathname.startsWith("/guides") ||
-    pathname.startsWith("/community") ||
-    pathname.startsWith("/chat")
-  ) {
-    if (!user) {
-      return NextResponse.redirect(new URL("/login", req.url));
-    }
-  }
-
-  // Role-based access
-  if (pathname.startsWith("/teacher") && user?.role !== "TEACHER" && user?.role !== "ADMIN") {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-  if (pathname.startsWith("/admin") && user?.role !== "ADMIN") {
+  // Protected routes - quick cookie existence check (actual auth verification happens in pages/layout)
+  const isProtected = PROTECTED_PREFIXES.some((p) => pathname.startsWith(p));
+  if (isProtected && !isLoggedIn) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
@@ -48,5 +46,8 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/teacher/:path*", "/admin/:path*", "/profile/:path*", "/practice/:path*", "/knowledge/:path*", "/timeline/:path*", "/sources/:path*", "/themes/:path*", "/atlas/:path*", "/lectures/:path*", "/readings/:path*", "/guides/:path*", "/community/:path*", "/chat/:path*"],
+  matcher: [
+    "/",
+    "/((?!api|_next/static|_next/image|favicon.ico|login|register).*)",
+  ],
 };

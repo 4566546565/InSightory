@@ -1,9 +1,9 @@
-import { db } from "@/lib/db";
+import { getTimelineEvents } from "@/lib/cache";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Clock, MapPin } from "lucide-react";
 
 export const metadata = { title: "时空轴" };
+export const revalidate = 3600;
 
 export default async function TimelinePage() {
   let events: Array<{
@@ -11,13 +11,7 @@ export default async function TimelinePage() {
     endDate: string | null; category: string; dynasty: string | null; importance: number; tags: string[];
   }> = [];
   try {
-    // 获取所有事件，然后在内存中按数字排序
-    const allEvents = await db.timelineEvent.findMany({ take: 500 });
-    events = allEvents.sort((a, b) => {
-      const aNum = parseInt(a.startDate);
-      const bNum = parseInt(b.startDate);
-      return aNum - bNum;
-    });
+    events = await getTimelineEvents();
   } catch {
     events = [];
   }

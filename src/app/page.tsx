@@ -1,18 +1,18 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
+import { getTextbooks, getTodayInHistory } from "@/lib/cache";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, Clock, FileText, FileQuestion, ArrowRight, Sparkles, MapIcon, Calendar, GraduationCap, Network } from "lucide-react";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 async function getHomeData() {
   try {
     const today = new Date();
     const [todayEvents, textbooks] = await Promise.all([
-      db.todayInHistory.findMany({ where: { month: today.getMonth() + 1, day: today.getDate() }, take: 3 }),
-      db.textbook.findMany({ where: { isActive: true }, orderBy: { sortOrder: "asc" } }),
+      getTodayInHistory(today.getMonth() + 1, today.getDate()),
+      getTextbooks(),
     ]);
     return { todayEvents, textbooks, dbError: false };
   } catch {
