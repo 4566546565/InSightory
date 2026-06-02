@@ -1,0 +1,19 @@
+"use client";
+
+import dynamic from "next/dynamic";
+
+const AtlasClient = dynamic(() => import("./atlas-client"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+      <div className="text-center">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent mx-auto mb-3" />
+        <p className="text-sm text-muted-foreground">加载地图中...</p>
+      </div>
+    </div>
+  ),
+});
+
+export default function AtlasDynamic() {
+  return <AtlasClient />;
+}
