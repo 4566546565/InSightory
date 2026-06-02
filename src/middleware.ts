@@ -6,14 +6,6 @@ export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const user = await getSessionFromCookie(req.headers.get("cookie"));
 
-  // Homepage: logged in → go to knowledge, not logged in → go to login
-  if (pathname === "/") {
-    if (user) {
-      return NextResponse.redirect(new URL("/knowledge", req.url));
-    }
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
   // Protected routes - require login
   if (
     pathname.startsWith("/teacher") ||
@@ -48,5 +40,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/", "/teacher/:path*", "/admin/:path*", "/profile/:path*", "/practice/:path*", "/knowledge/:path*", "/timeline/:path*", "/sources/:path*", "/themes/:path*", "/atlas/:path*", "/lectures/:path*", "/readings/:path*", "/guides/:path*", "/community/:path*", "/chat/:path*"],
+  matcher: ["/teacher/:path*", "/admin/:path*", "/profile/:path*", "/practice/:path*", "/knowledge/:path*", "/timeline/:path*", "/sources/:path*", "/themes/:path*", "/atlas/:path*", "/lectures/:path*", "/readings/:path*", "/guides/:path*", "/community/:path*", "/chat/:path*"],
 };

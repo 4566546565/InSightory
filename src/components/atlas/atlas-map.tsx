@@ -508,7 +508,7 @@ function MapView() {
                 const m = L.marker(phase.point, { icon }).addTo(map);
                 m.on("click", () => {
                   dispatch({ type: "SET_YEAR", year: w.start_year });
-                  dispatch({ type: "SELECT_EVENT", id: w.id });
+                  dispatch({ type: "SELECT_EVENT", id: phase.event_id || w.id });
                 });
                 m.bindPopup(
                   `<div style="text-align:center"><b style="color:#e74c3c">&#9876; ${phase.name}</b><br/><small>${w.name}</small></div>`
@@ -823,7 +823,11 @@ function MapView() {
     const routeId = eid.replace(/^evt:/, "");
 
     // 1) 路线事件（如张骞出使西域）
-    const route = chinaRoutes.find((r) => r.id === routeId);
+    // 优先精确匹配 route id，也支持匹配途经点的 event_id（如遵义会议→长征路线）
+    let route = chinaRoutes.find((r) => r.id === routeId);
+    if (!route) {
+      route = chinaRoutes.find((r) => r.waypoints.some((wp: { event_id?: string }) => wp.event_id === routeId));
+    }
     if (route) {
       const color = route.color || "#8B4513";
       const latlngs = route.path.map(([lng, lat]) => [lat, lng] as [number, number]);
@@ -849,7 +853,17 @@ function MapView() {
           className: "", iconSize: [size, size], iconAnchor: [size / 2, size / 2],
         });
         const [lng, lat] = wp.coords;
-        const m = L.marker([lat, lng], { icon, interactive: false }).addTo(map);
+        const wpEventId = (wp as { event_id?: string }).event_id || route.event_id;
+        const m = L.marker([lat, lng], { icon, interactive: !!wpEventId }).addTo(map);
+        if (wpEventId) {
+          m.on("click", () => {
+            dispatch({ type: "SET_YEAR", year: 1935 });
+            dispatch({ type: "SELECT_EVENT", id: `evt:${wpEventId}` });
+          });
+          m.bindPopup(
+            `<div style="text-align:center"><b style="color:${color}">${wp.name}</b>${wp.label ? `<br/><small>${wp.label}</small>` : ""}</div>`
+          );
+        }
         eventRouteRef.current.push(m);
       });
 

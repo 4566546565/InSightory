@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -22,15 +23,23 @@ export function Topbar({ user }: { user?: { name?: string; email?: string; role?
   const { setTheme, theme } = useTheme();
   const { fontSize, setFontSize } = useFontSize();
   const [searchFocused, setSearchFocused] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
 
   const initials = user?.name?.charAt(0) || "U";
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`);
+    }
+  };
 
   return (
     <header className="flex h-16 items-center gap-4 border-b bg-[hsl(var(--card))]/80 glass px-6">
       <div className="flex-1" />
 
       {/* Search */}
-      <div className="relative">
+      <form onSubmit={handleSearch} className="relative">
         <div
           className={`flex items-center gap-2 rounded-xl border bg-[hsl(var(--muted))]/50 px-4 py-2.5 text-sm text-[hsl(var(--muted-foreground))] transition-all duration-300 ${
             searchFocused
@@ -42,15 +51,17 @@ export function Topbar({ user }: { user?: { name?: string; email?: string; role?
           <input
             type="text"
             placeholder="搜索知识点、试题、史料..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent outline-none placeholder:text-[hsl(var(--muted-foreground))]"
             onFocus={() => setSearchFocused(true)}
             onBlur={() => setSearchFocused(false)}
           />
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 text-[10px] border border-[hsl(var(--border))] rounded px-1.5 py-0.5 bg-[hsl(var(--background))]">
-            Ctrl+K
-          </kbd>
+          <button type="submit" className="shrink-0 rounded-lg bg-[hsl(var(--primary))] text-white p-1.5 hover:opacity-90 transition-opacity">
+            <Search className="h-3.5 w-3.5" />
+          </button>
         </div>
-      </div>
+      </form>
 
       <div className="flex items-center gap-2">
         {/* Notifications */}
@@ -116,7 +127,10 @@ export function Topbar({ user }: { user?: { name?: string; email?: string; role?
                 <Settings className="mr-2 h-4 w-4" />设置
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); window.location.href = "/"; }} className="cursor-pointer text-[hsl(var(--destructive))]">
+              <DropdownMenuItem onClick={async () => {
+                await signOut({ redirect: false });
+                window.location.href = "/";
+              }} className="cursor-pointer text-[hsl(var(--destructive))]">
                 <LogOut className="mr-2 h-4 w-4" />退出登录
               </DropdownMenuItem>
             </DropdownMenuContent>

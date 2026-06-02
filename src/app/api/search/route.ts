@@ -9,8 +9,30 @@ export async function GET(req: Request) {
     const pageSize = parseInt(url.searchParams.get("pageSize") || "20");
 
     if (!q || q.length < 1) {
-      return apiSuccess({ knowledgePoints: [], questions: [], total: 0 });
+      return apiSuccess({ lessons: [], knowledgePoints: [], questions: [], total: 0 });
     }
+
+    const lessonResults = await db.lesson.findMany({
+      where: {
+        OR: [
+          { title: { contains: q } },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        lessonNumber: true,
+        unit: {
+          select: {
+            id: true,
+            title: true,
+            textbook: { select: { id: true, title: true } },
+          },
+        },
+      },
+      take: pageSize,
+      skip: (page - 1) * pageSize,
+    });
 
     const kpResults = await db.knowledgePoint.findMany({
       where: {
@@ -55,9 +77,10 @@ export async function GET(req: Request) {
     });
 
     return apiSuccess({
+      lessons: lessonResults,
       knowledgePoints: kpResults,
       questions: questionResults,
-      total: kpResults.length + questionResults.length,
+      total: lessonResults.length + kpResults.length + questionResults.length,
     });
   } catch (error) {
     return apiError(error);

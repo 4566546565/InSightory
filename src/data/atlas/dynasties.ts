@@ -729,6 +729,7 @@ export const keyEvents = [
   { year: 1911, label: "辛亥革命", event_id: "xinhai-revolution", coords: [114.3, 30.6] as [number, number] },
   // 现代
   { year: 1921, label: "中共成立", event_id: "cpc-founding", coords: [121.5, 31.2] as [number, number] },
+  { year: 1934, label: "长征·四渡赤水", event_id: "long-march", coords: [116.03, 25.88] as [number, number] },
   { year: 1945, label: "抗战胜利", event_id: "victory-anti-japan" },
   { year: 1949, label: "新中国成立", event_id: "prc-found", coords: [116.4, 39.9] as [number, number] },
   { year: 1978, label: "改革开放", event_id: "reform-opening", coords: [114.1, 22.5] as [number, number] },

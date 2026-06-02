@@ -2,7 +2,10 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { ZoomIn, ZoomOut, RotateCcw, Maximize2, Pencil, X, Check } from "lucide-react";
+import {
+  Pencil, Eraser, ZoomIn, ZoomOut, RotateCcw, Maximize2,
+  Undo2, Trash2,
+} from "lucide-react";
 
 interface MindMapNode {
   content: string;
@@ -32,97 +35,39 @@ interface MarkmapInstance {
   destroy: () => void;
 }
 
+interface DrawStroke {
+  id: string;
+  points: { x: number; y: number }[];
+  color: string;
+  width: number;
+}
+
+type ToolMode = "none" | "draw" | "erase";
+
+const PALETTE = ["#ef4444", "#f97316", "#3b82f6", "#22c55e", "#a855f7", "#1e293b"];
+const STROKE_WIDTHS = [2, 4, 7];
+
 export function MindMapViewer({ data }: { data: unknown }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const drawCanvasRef = useRef<HTMLCanvasElement>(null);
   const markmapRef = useRef<MarkmapInstance | null>(null);
   const transformerRef = useRef<unknown>(null);
   const [loading, setLoading] = useState(true);
   const [dragging, setDragging] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [markdown, setMarkdown] = useState("");
-  const originalMarkdownRef = useRef("");
 
-  // Initialize markdown from data
+  // Drawing state
+  const [tool, setTool] = useState<ToolMode>("none");
+  const [color, setColor] = useState(PALETTE[2]);
+  const [strokeWidthIdx, setStrokeWidthIdx] = useState(1);
+  const [strokes, setStrokes] = useState<DrawStroke[]>([]);
+  const [undoStack, setUndoStack] = useState<DrawStroke[][]>([]);
+  const drawingRef = useRef<{ points: { x: number; y: number }[]; color: string; width: number } | null>(null);
+  const erasingRef = useRef(false);
+
+  // ── Initialize markmap ───────────────────────────────────────────────────
+
   useEffect(() => {
-    // Handle case where data might be a JSON string
-    let parsedData = data;
-    if (typeof data === "string") {
-      try { parsedData = JSON.parse(data); } catch { /* keep as-is */ }
-    }
-    if (parsedData && typeof parsedData === "object" && "content" in (parsedData as MindMapNode)) {
-      const md = renderMarkmapJson(parsedData as MindMapNode);
-      setMarkdown(md);
-      originalMarkdownRef.current = md;
-    }
-  }, [data]);
-
-  const getCurrentScale = useCallback(() => {
-    const mm = markmapRef.current;
-    if (!mm) return 1;
-    try {
-      // d3-zoom stores transform on the SVG element as __zoom property
-      const svgEl = svgRef.current as unknown as { __zoom?: { k: number } } | null;
-      if (svgEl?.__zoom) return svgEl.__zoom.k;
-      return mm.state?.scale || 1;
-    } catch {
-      return 1;
-    }
-  }, []);
-
-  const handleZoomIn = useCallback(() => {
-    const mm = markmapRef.current;
-    if (!mm) return;
-    const current = getCurrentScale();
-    mm.rescale(Math.min(current * 1.3, 5));
-  }, [getCurrentScale]);
-
-  const handleZoomOut = useCallback(() => {
-    const mm = markmapRef.current;
-    if (!mm) return;
-    const current = getCurrentScale();
-    mm.rescale(Math.max(current / 1.3, 0.2));
-  }, [getCurrentScale]);
-
-  const handleReset = useCallback(() => {
-    markmapRef.current?.fit();
-  }, []);
-
-  const handleFullscreen = useCallback(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      container.requestFullscreen();
-    }
-  }, []);
-
-  const handleApplyEdit = useCallback(() => {
-    const mm = markmapRef.current;
-    const transformer = transformerRef.current as { transform: (md: string) => { root: unknown } } | null;
-    if (!mm || !transformer) return;
-
-    try {
-      const { root } = transformer.transform(markdown);
-      mm.setData(root).then(() => mm.fit());
-    } catch {
-      // Invalid markdown, ignore
-    }
-  }, [markdown]);
-
-  const handleResetEdit = useCallback(() => {
-    setMarkdown(originalMarkdownRef.current);
-    const mm = markmapRef.current;
-    const transformer = transformerRef.current as { transform: (md: string) => { root: unknown } } | null;
-    if (!mm || !transformer) return;
-    const { root } = transformer.transform(originalMarkdownRef.current);
-    mm.setData(root).then(() => mm.fit());
-  }, []);
-
-  // Initialize markmap
-  useEffect(() => {
-    // Handle case where data might be a JSON string
     let parsedData = data;
     if (typeof data === "string") {
       try { parsedData = JSON.parse(data); } catch { /* keep as-is */ }
@@ -162,24 +107,226 @@ export function MindMapViewer({ data }: { data: unknown }) {
     };
   }, [data]);
 
-  // Drag state tracking for cursor
-  const handlePointerDown = useCallback(() => setDragging(true), []);
-  const handlePointerUp = useCallback(() => setDragging(false), []);
+  // ── Resize drawing canvas to match SVG ───────────────────────────────────
+
+  useEffect(() => {
+    const svg = svgRef.current;
+    const cvs = drawCanvasRef.current;
+    if (!svg || !cvs) return;
+
+    function sync() {
+      const s = svgRef.current;
+      const c = drawCanvasRef.current;
+      if (!s || !c) return;
+      const rect = s.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      c.width = rect.width * dpr;
+      c.height = rect.height * dpr;
+      c.style.width = `${rect.width}px`;
+      c.style.height = `${rect.height}px`;
+      const ctx = c.getContext("2d");
+      if (ctx) ctx.scale(dpr, dpr);
+    }
+
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(svg);
+    return () => ro.disconnect();
+  }, []);
+
+  // ── Redraw strokes when they change ──────────────────────────────────────
+
+  const redrawStrokes = useCallback(() => {
+    const cvs = drawCanvasRef.current;
+    if (!cvs) return;
+    const ctx = cvs.getContext("2d");
+    if (!ctx) return;
+    const dpr = window.devicePixelRatio || 1;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+
+    for (const st of strokes) {
+      if (st.points.length < 2) continue;
+      ctx.strokeStyle = st.color;
+      ctx.lineWidth = st.width;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.beginPath();
+      ctx.moveTo(st.points[0].x, st.points[0].y);
+      if (st.points.length === 2) {
+        ctx.lineTo(st.points[1].x, st.points[1].y);
+      } else {
+        for (let i = 1; i < st.points.length - 1; i++) {
+          const mx = (st.points[i].x + st.points[i + 1].x) / 2;
+          const my = (st.points[i].y + st.points[i + 1].y) / 2;
+          ctx.quadraticCurveTo(st.points[i].x, st.points[i].y, mx, my);
+        }
+        const last = st.points[st.points.length - 1];
+        ctx.lineTo(last.x, last.y);
+      }
+      ctx.stroke();
+    }
+
+    // Active drawing preview
+    if (drawingRef.current && drawingRef.current.points.length >= 2) {
+      const dr = drawingRef.current;
+      ctx.strokeStyle = dr.color;
+      ctx.lineWidth = dr.width;
+      ctx.lineCap = "round";
+      ctx.lineJoin = "round";
+      ctx.globalAlpha = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(dr.points[0].x, dr.points[0].y);
+      for (let i = 1; i < dr.points.length - 1; i++) {
+        const mx = (dr.points[i].x + dr.points[i + 1].x) / 2;
+        const my = (dr.points[i].y + dr.points[i + 1].y) / 2;
+        ctx.quadraticCurveTo(dr.points[i].x, dr.points[i].y, mx, my);
+      }
+      const last = dr.points[dr.points.length - 1];
+      ctx.lineTo(last.x, last.y);
+      ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+  }, [strokes]);
+
+  useEffect(() => {
+    redrawStrokes();
+  }, [strokes, redrawStrokes]);
+
+  // ── Drawing canvas pointer handlers ──────────────────────────────────────
+
+  function getCvsPos(e: React.PointerEvent) {
+    const cvs = drawCanvasRef.current;
+    if (!cvs) return { x: 0, y: 0 };
+    const rect = cvs.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+  }
+
+  function onDrawPointerDown(e: React.PointerEvent) {
+    if (tool === "none") return;
+    e.stopPropagation();
+    const cvs = drawCanvasRef.current;
+    if (cvs) cvs.setPointerCapture(e.pointerId);
+    const pos = getCvsPos(e);
+
+    if (tool === "draw") {
+      drawingRef.current = { points: [pos], color, width: STROKE_WIDTHS[strokeWidthIdx] };
+    } else if (tool === "erase") {
+      erasingRef.current = true;
+      eraseAt(pos.x, pos.y);
+    }
+  }
+
+  function onDrawPointerMove(e: React.PointerEvent) {
+    if (tool === "none") return;
+    const pos = getCvsPos(e);
+
+    if (drawingRef.current) {
+      drawingRef.current.points.push(pos);
+      redrawStrokes();
+      return;
+    }
+
+    if (erasingRef.current) {
+      eraseAt(pos.x, pos.y);
+    }
+  }
+
+  function onDrawPointerUp(e: React.PointerEvent) {
+    if (tool === "none") return;
+    const cvs = drawCanvasRef.current;
+    if (cvs) cvs.releasePointerCapture(e.pointerId);
+    erasingRef.current = false;
+
+    if (drawingRef.current && drawingRef.current.points.length >= 2) {
+      const dr = drawingRef.current;
+      setUndoStack((prev) => [...prev, strokes]);
+      setStrokes((prev) => [...prev, {
+        id: `s${Date.now()}`,
+        points: dr.points,
+        color: dr.color,
+        width: dr.width,
+      }]);
+    }
+    drawingRef.current = null;
+  }
+
+  function eraseAt(x: number, y: number) {
+    setStrokes((prev) => {
+      const before = prev.length;
+      const next = prev.filter((s) =>
+        !s.points.some((p) => Math.abs(p.x - x) < 16 && Math.abs(p.y - y) < 16)
+      );
+      if (next.length < before) setUndoStack((u) => [...u, prev]);
+      return next;
+    });
+  }
+
+  // ── Toolbar actions ──────────────────────────────────────────────────────
+
+  const handleZoomIn = useCallback(() => {
+    markmapRef.current?.rescale((markmapRef.current.state?.scale || 1) * 1.3);
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    markmapRef.current?.rescale((markmapRef.current.state?.scale || 1) / 1.3);
+  }, []);
+
+  const handleReset = useCallback(() => {
+    markmapRef.current?.fit();
+  }, []);
+
+  const handleFullscreen = useCallback(() => {
+    const c = containerRef.current;
+    if (!c) return;
+    document.fullscreenElement ? document.exitFullscreen() : c.requestFullscreen();
+  }, []);
+
+  const handleUndo = useCallback(() => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setUndoStack((u) => u.slice(0, -1));
+    setStrokes(prev);
+  }, [undoStack]);
+
+  const handleClearAll = useCallback(() => {
+    if (strokes.length === 0) return;
+    setUndoStack((u) => [...u, strokes]);
+    setStrokes([]);
+  }, [strokes]);
+
+  // ── Sync drawing canvas offset with markmap pan/zoom ─────────────────────
 
   useEffect(() => {
     const svg = svgRef.current;
     if (!svg) return;
-    svg.addEventListener("pointerdown", handlePointerDown);
-    svg.addEventListener("pointerup", handlePointerUp);
-    svg.addEventListener("pointerleave", handlePointerUp);
-    return () => {
-      svg.removeEventListener("pointerdown", handlePointerDown);
-      svg.removeEventListener("pointerup", handlePointerUp);
-      svg.removeEventListener("pointerleave", handlePointerUp);
-    };
-  }, [handlePointerDown, handlePointerUp]);
 
-  // Check if data is empty (handle both object and string)
+    // markmap uses d3-zoom, which stores the transform as __zoom on the SVG
+    // We need to observe when the SVG transforms and re-offset our drawing canvas
+    let lastTransform = "";
+
+    function syncOffset() {
+      const svgEl = svg as unknown as { __zoom?: { k: number; x: number; y: number } };
+      const t = svgEl.__zoom;
+      if (!t) return;
+      const key = `${t.k},${t.x},${t.y}`;
+      if (key === lastTransform) return;
+      lastTransform = key;
+
+      const cvs = drawCanvasRef.current;
+      if (!cvs) return;
+      // Offset the drawing canvas to match the SVG's d3-zoom transform
+      cvs.style.transform = `translate(${t.x}px, ${t.y}px) scale(${t.k})`;
+      cvs.style.transformOrigin = "0 0";
+    }
+
+    // Poll for transform changes (d3-zoom doesn't fire standard events)
+    const iv = setInterval(syncOffset, 50);
+    return () => clearInterval(iv);
+  }, []);
+
+  // ── Check empty ──────────────────────────────────────────────────────────
+
   const hasData = data && (typeof data === "object" || (typeof data === "string" && data.length > 2));
   if (!hasData) {
     return (
@@ -195,36 +342,84 @@ export function MindMapViewer({ data }: { data: unknown }) {
     );
   }
 
+  const isDrawing = tool !== "none";
+
   return (
     <div ref={containerRef} className="mindmap-container relative">
-      {/* Toolbar - always visible */}
+      {/* Toolbar */}
       <div className="mindmap-toolbar">
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomIn} title="放大">
-          <ZoomIn className="h-4 w-4" />
+        {/* Drawing tools */}
+        <Button
+          variant="ghost" size="icon" className="h-8 w-8"
+          onClick={() => setTool(tool === "draw" ? "none" : "draw")}
+          title={tool === "draw" ? "退出画笔" : "画笔涂鸦"}
+        >
+          <Pencil className={`h-4 w-4 ${tool === "draw" ? "text-[hsl(var(--primary))]" : ""}`} />
         </Button>
-        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} title="缩小">
-          <ZoomOut className="h-4 w-4" />
+        <Button
+          variant="ghost" size="icon" className="h-8 w-8"
+          onClick={() => setTool(tool === "erase" ? "none" : "erase")}
+          title={tool === "erase" ? "退出橡皮擦" : "橡皮擦"}
+        >
+          <Eraser className={`h-4 w-4 ${tool === "erase" ? "text-[hsl(var(--primary))]" : ""}`} />
         </Button>
-        <div className="w-px h-4 bg-[hsl(var(--border))]" />
+
+        {/* Colors (visible when drawing) */}
+        {isDrawing && (
+          <>
+            <div className="w-px h-4 bg-[hsl(var(--border))]" />
+            {PALETTE.map((c) => (
+              <button
+                key={c}
+                className={`h-4 w-4 rounded-full border-2 transition-all ${color === c ? "border-foreground scale-125" : "border-transparent hover:scale-110"}`}
+                style={{ backgroundColor: c }}
+                onClick={() => setColor(c)}
+              />
+            ))}
+            <div className="w-px h-4 bg-[hsl(var(--border))]" />
+            {STROKE_WIDTHS.map((w, i) => (
+              <button
+                key={w}
+                className={`h-6 px-1.5 rounded text-[10px] font-medium transition-all ${strokeWidthIdx === i ? "bg-[hsl(var(--primary))] text-white" : "text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]"}`}
+                onClick={() => setStrokeWidthIdx(i)}
+              >
+                {"细 中 粗".split(" ")[i]}
+              </button>
+            ))}
+            <div className="w-px h-4 bg-[hsl(var(--border))]" />
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleUndo} title="撤销" disabled={undoStack.length === 0}>
+              <Undo2 className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleClearAll} title="清除所有涂鸦" disabled={strokes.length === 0}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </>
+        )}
+
+        {!isDrawing && <div className="flex-1" />}
+
+        {/* Zoom controls - always visible */}
+        {!isDrawing && (
+          <>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomIn} title="放大">
+              <ZoomIn className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleZoomOut} title="缩小">
+              <ZoomOut className="h-4 w-4" />
+            </Button>
+            <div className="w-px h-4 bg-[hsl(var(--border))]" />
+          </>
+        )}
+
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleReset} title="重置视图">
           <RotateCcw className="h-4 w-4" />
-        </Button>
-        <div className="w-px h-4 bg-[hsl(var(--border))]" />
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`h-8 w-8 ${editing ? "bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]" : ""}`}
-          onClick={() => setEditing(!editing)}
-          title="编辑思维导图"
-        >
-          <Pencil className="h-4 w-4" />
         </Button>
         <Button variant="ghost" size="icon" className="h-8 w-8" onClick={handleFullscreen} title="全屏">
           <Maximize2 className="h-4 w-4" />
         </Button>
       </div>
 
-      {/* SVG Container */}
+      {/* SVG Container (markmap renders here) */}
       <div
         className={`w-full h-[500px] overflow-hidden rounded-xl bg-[hsl(var(--background))] ${
           dragging ? "mindmap-dragging" : ""
@@ -241,36 +436,30 @@ export function MindMapViewer({ data }: { data: unknown }) {
         <svg
           ref={svgRef}
           className="w-full h-full"
-          style={{ touchAction: "none" }}
+          style={{ touchAction: isDrawing ? "none" : undefined }}
+        />
+
+        {/* Drawing overlay canvas — sits on top of SVG */}
+        <canvas
+          ref={drawCanvasRef}
+          className="absolute inset-0 w-full h-full pointer-events-auto"
+          style={{
+            cursor: tool === "draw" ? "crosshair" : tool === "erase" ? "cell" : "default",
+            pointerEvents: isDrawing ? "auto" : "none",
+            touchAction: "none",
+          }}
+          onPointerDown={onDrawPointerDown}
+          onPointerMove={onDrawPointerMove}
+          onPointerUp={onDrawPointerUp}
+          onPointerLeave={onDrawPointerUp}
         />
       </div>
 
-      {/* Edit Panel */}
-      {editing && (
-        <div className="mt-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] overflow-hidden animate-fade-in-up">
-          <div className="flex items-center justify-between px-4 py-2.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30">
-            <div className="flex items-center gap-2">
-              <Pencil className="h-3.5 w-3.5 text-[hsl(var(--primary))]" />
-              <span className="text-sm font-medium">编辑思维导图源文本</span>
-            </div>
-            <span className="text-[10px] text-[hsl(var(--muted-foreground))]">编辑仅在当前会话生效</span>
-          </div>
-          <textarea
-            value={markdown}
-            onChange={(e) => setMarkdown(e.target.value)}
-            className="w-full h-48 p-4 text-sm font-mono bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none resize-y"
-            spellCheck={false}
-          />
-          <div className="flex items-center justify-end gap-2 px-4 py-2.5 border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))]/20">
-            <Button variant="ghost" size="sm" onClick={handleResetEdit} className="gap-1.5">
-              <RotateCcw className="h-3.5 w-3.5" />
-              重置
-            </Button>
-            <Button size="sm" onClick={handleApplyEdit} className="gap-1.5">
-              <Check className="h-3.5 w-3.5" />
-              应用
-            </Button>
-          </div>
+      {/* Mode indicator */}
+      {isDrawing && (
+        <div className="mt-2 text-center text-[10px] text-[hsl(var(--muted-foreground))]">
+          {tool === "draw" && "🎨 画笔模式 — 在思维导图上自由涂鸦标注"}
+          {tool === "erase" && "🧹 橡皮擦模式 — 点击或拖拽擦除涂鸦"}
         </div>
       )}
     </div>
