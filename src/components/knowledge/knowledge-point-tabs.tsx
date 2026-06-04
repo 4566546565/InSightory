@@ -9,11 +9,13 @@ import { RichContent } from "@/components/knowledge/rich-content";
 
 interface KeyConcept {
   term: string;
-  definition: string;
+  definition?: string;
+  explanation?: string;
 }
 
 interface Misconception {
-  statement: string;
+  statement?: string;
+  claim?: string;
   correction: string;
 }
 
@@ -72,7 +74,7 @@ export function KnowledgePointTabs({
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-sm text-muted-foreground leading-relaxed">{kc.definition}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{kc.definition ?? kc.explanation}</p>
                 </CardContent>
               </Card>
             ))}
@@ -93,7 +95,7 @@ export function KnowledgePointTabs({
                     </div>
                     <div>
                       <span className="text-xs text-muted-foreground block">误区 {i + 1}</span>
-                      <span>{mc.statement}</span>
+                      <span>{mc.statement ?? mc.claim}</span>
                     </div>
                   </CardTitle>
                 </CardHeader>

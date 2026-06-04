@@ -19,7 +19,7 @@ interface AtlasState {
   isPlaying: boolean;
   playSpeed: 1 | 5;
   view: "china" | "world";
-  layers: { dynasty: boolean; war: boolean; trade: boolean; empire: boolean };
+  layers: { dynasty: boolean; war: boolean; trade: boolean; empire: boolean; ohm: boolean };
   selectedEventId: string | null;
   selectedDynastyId: string | null;
 }
@@ -41,7 +41,7 @@ const initialState: AtlasState = {
   isPlaying: false,
   playSpeed: 1,
   view: "china",
-  layers: { dynasty: false, war: true, trade: true, empire: false },
+  layers: { dynasty: false, war: true, trade: true, empire: false, ohm: false },
   selectedEventId: null,
   selectedDynastyId: null,
 };

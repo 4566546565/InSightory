@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -116,7 +117,7 @@ export function Topbar({ user }: { user?: { name?: string; email?: string; role?
                 <Settings className="mr-2 h-4 w-4" />设置
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => { await fetch("/api/auth/signout", { method: "POST" }); window.location.href = "/"; }} className="cursor-pointer text-[hsl(var(--destructive))]">
+              <DropdownMenuItem onClick={() => signOut({ callbackUrl: "/" })} className="cursor-pointer text-[hsl(var(--destructive))]">
                 <LogOut className="mr-2 h-4 w-4" />退出登录
               </DropdownMenuItem>
             </DropdownMenuContent>

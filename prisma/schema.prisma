@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
@@ -590,6 +591,27 @@ model KnowledgePointStats {
   commonWrongAnswers   Json?
   difficultyPerception Float?
   knowledgePoint       KnowledgePoint @relation(fields: [knowledgePointId], references: [id], onDelete: Cascade)
+}
+
+model KnowledgeExpansionCandidate {
+  id               String   @id
+  knowledgePointId String
+  title            String
+  status           String   @default("needs_review")
+  gapSeverity      String
+  missing          String[]
+  suggestedContent String
+  keyConcepts      Json
+  misconceptions   Json
+  relations        Json
+  mapOverlays      Json
+  sourceRefs       Json
+  appliedAt        DateTime?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([knowledgePointId])
+  @@index([status])
 }
 
 enum Role {

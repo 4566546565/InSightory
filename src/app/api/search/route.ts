@@ -1,14 +1,18 @@
 import { db } from "@/lib/db";
 import { apiSuccess, apiError } from "@/lib/errors";
+import { requireAuth } from "@/lib/auth-helpers";
 
 export async function GET(req: Request) {
   try {
-    const url = new URL(req.url);
-    const q = url.searchParams.get("q") || "";
-    const page = parseInt(url.searchParams.get("page") || "1");
-    const pageSize = parseInt(url.searchParams.get("pageSize") || "20");
+    await requireAuth();
 
-    if (!q || q.length < 1) {
+    const url = new URL(req.url);
+    const q = (url.searchParams.get("q") || "").trim();
+    const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10) || 1);
+    const requestedPageSize = parseInt(url.searchParams.get("pageSize") || "20", 10) || 20;
+    const pageSize = Math.min(Math.max(1, requestedPageSize), 50);
+
+    if (q.length < 2) {
       return apiSuccess({ knowledgePoints: [], questions: [], total: 0 });
     }
 

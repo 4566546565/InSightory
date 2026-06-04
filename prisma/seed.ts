@@ -2,6 +2,8 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const db = new PrismaClient();
+const allowReset =
+  process.argv.includes("--reset") || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
 
 function doc(...ps: string[]) {
   return { type: "doc", content: ps.map((t) => ({ type: "paragraph", content: [{ type: "text", text: t }] })) };
@@ -10,6 +12,12 @@ function doc(...ps: string[]) {
 type MindNode = { content: string; children?: MindNode[] };
 
 async function main() {
+  if (!allowReset) {
+    throw new Error(
+      "This seed script deletes existing data. Run `npm run db:seed:reset` or set ALLOW_DESTRUCTIVE_SEED=true to continue."
+    );
+  }
+
   console.log("Seeding database from PDF structured knowledge base...");
   await db.quizAnswer.deleteMany(); await db.quizAttempt.deleteMany(); await db.errorBookEntry.deleteMany();
   await db.bookmark.deleteMany(); await db.note.deleteMany(); await db.learningProgress.deleteMany();

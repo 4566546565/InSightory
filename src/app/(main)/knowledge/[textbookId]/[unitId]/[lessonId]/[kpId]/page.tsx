@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ChevronRight } from "lucide-react";
 import { KnowledgePointTabs } from "@/components/knowledge/knowledge-point-tabs";
+import { KnowledgeRelations, type KnowledgeRelationItem } from "@/components/knowledge/knowledge-relations";
 
 export async function generateMetadata({ params }: { params: Promise<{ kpId: string }> }) {
   const { kpId } = await params;
@@ -25,6 +26,28 @@ export default async function KnowledgePointPage({
       lesson: {
         select: { id: true, title: true, lessonNumber: true, unit: { select: { id: true, unitNumber: true, textbookId: true } } },
       },
+      relatedFrom: {
+        include: {
+          targetKp: {
+            select: {
+              id: true,
+              title: true,
+              lesson: { select: { id: true, unitId: true, unit: { select: { textbookId: true } } } },
+            },
+          },
+        },
+      },
+      relatedTo: {
+        include: {
+          sourceKp: {
+            select: {
+              id: true,
+              title: true,
+              lesson: { select: { id: true, unitId: true, unit: { select: { textbookId: true } } } },
+            },
+          },
+        },
+      },
     },
   });
 
@@ -33,6 +56,20 @@ export default async function KnowledgePointPage({
   const backHref = `/knowledge/${textbookId}/${unitId}/${lessonId}`;
   const keyConcepts = kp.keyConcepts as Array<{ term: string; definition: string }> | null;
   const misconceptions = kp.commonMisconceptions as Array<{ statement: string; correction: string }> | null;
+  const relations: KnowledgeRelationItem[] = [
+    ...kp.relatedFrom.map((relation) => ({
+      id: relation.id,
+      relationType: relation.relationType,
+      direction: "from" as const,
+      point: relation.targetKp,
+    })),
+    ...kp.relatedTo.map((relation) => ({
+      id: relation.id,
+      relationType: relation.relationType,
+      direction: "to" as const,
+      point: relation.sourceKp,
+    })),
+  ];
 
   return (
     <div className="animate-fade-in-up">
@@ -83,6 +120,8 @@ export default async function KnowledgePointPage({
         misconceptions={misconceptions}
         examRequirements={kp.examRequirements}
       />
+
+      <KnowledgeRelations relations={relations} />
 
       {/* ── Back to lesson ── */}
       <div className="mt-10 pt-6 border-t">

@@ -8,6 +8,7 @@ import { tradeNetworks } from "@/data/atlas/trade-networks";
 import { worldEmpires } from "@/data/atlas/world-empires";
 import { explorationRoutes } from "@/data/atlas/exploration-routes";
 import { chinaRoutes } from "@/data/atlas/china-routes";
+import { openHistoricalMapSamples } from "@/data/atlas/openhistoricalmap";
 import { allEvents, type EventDetail } from "@/data/atlas/events";
 import ReactMarkdown from "react-markdown";
 import "leaflet/dist/leaflet.css";
@@ -133,7 +134,7 @@ export function LayerControls() {
         </span>
       </div>
       <div className="flex items-center gap-3">
-        {(["dynasty", "war", "trade", "empire"] as const).map((key) => (
+        {(["dynasty", "war", "trade", "empire", "ohm"] as const).map((key) => (
           <label key={key} className="flex items-center gap-1.5 cursor-pointer">
             <input
               type="checkbox"
@@ -141,7 +142,7 @@ export function LayerControls() {
               onChange={() => dispatch({ type: "TOGGLE_LAYER", layer: key })}
               className="rounded border-border text-primary"
             />
-            <span>{key === "dynasty" ? "疆域" : key === "war" ? "战争" : key === "trade" ? "贸易" : "殖民帝国"}</span>
+            <span>{key === "dynasty" ? "疆域" : key === "war" ? "战争" : key === "trade" ? "贸易" : key === "empire" ? "殖民帝国" : "OHM"}</span>
           </label>
         ))}
       </div>
@@ -371,7 +372,7 @@ function MapView() {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapRef2 = useRef<any>(null);
   const initRef = useRef(false);
-  const layersRef = useRef<any>({ dynasty: [], war: [], trade: [], empire: [] });
+  const layersRef = useRef<any>({ dynasty: [], war: [], trade: [], empire: [], ohm: [] });
   const eventRouteRef = useRef<any[]>([]);
   const tileRef = useRef<any>(null); // 当前激活的瓦片图层
   const stateRef = useRef({ currentYear, layers, view, selectedDynastyId: state.selectedDynastyId, selectedEventId: state.selectedEventId });
@@ -380,12 +381,12 @@ function MapView() {
   const clearLayers = useCallback(() => {
     const map = mapRef2.current;
     if (!map) return;
-    (["dynasty", "war", "trade", "empire"] as const).forEach((key) => {
+    (["dynasty", "war", "trade", "empire", "ohm"] as const).forEach((key) => {
       layersRef.current[key].forEach((layer: any) => {
         try { map.removeLayer(layer); } catch {}
       });
     });
-    layersRef.current = { dynasty: [], war: [], trade: [], empire: [] };
+    layersRef.current = { dynasty: [], war: [], trade: [], empire: [], ohm: [] };
   }, []);
 
   const clearEventRoutes = useCallback(() => {
@@ -516,6 +517,25 @@ function MapView() {
                 layersRef.current.war.push(m);
               }
             });
+          });
+      }
+
+      if (ly.ohm) {
+        openHistoricalMapSamples
+          .filter((item) => cy >= item.startYear && cy <= item.endYear)
+          .forEach((item) => {
+            const icon = L.divIcon({
+              html: `<div style="background:#0f766e;color:#fff;border:2px solid #fff;border-radius:999px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;box-shadow:0 2px 8px rgba(15,118,110,.45)">H</div>`,
+              className: "",
+              iconSize: [18, 18],
+              iconAnchor: [9, 9],
+            });
+            const [lng, lat] = item.coords;
+            const marker = L.marker([lat, lng], { icon }).addTo(map);
+            marker.bindPopup(
+              `<div style="max-width:220px"><b>${item.title}</b><br/><small>${item.description}</small><br/><a href="${item.sourceUrl}" target="_blank" rel="noreferrer">OpenHistoricalMap</a></div>`
+            );
+            layersRef.current.ohm.push(marker);
           });
       }
     }
@@ -672,6 +692,26 @@ function MapView() {
             layersRef.current.empire.push(label);
           });
         }
+      }
+
+      // OpenHistoricalMap 候选覆盖层：作为天地图之上的历史对象提示层
+      if (ly.ohm) {
+        openHistoricalMapSamples
+          .filter((item) => cy >= item.startYear && cy <= item.endYear)
+          .forEach((item) => {
+            const icon = L.divIcon({
+              html: `<div style="background:#0f766e;color:#fff;border:2px solid #fff;border-radius:999px;width:18px;height:18px;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;box-shadow:0 2px 8px rgba(15,118,110,.45)">H</div>`,
+              className: "",
+              iconSize: [18, 18],
+              iconAnchor: [9, 9],
+            });
+            const [lng, lat] = item.coords;
+            const marker = L.marker([lat, lng], { icon }).addTo(map);
+            marker.bindPopup(
+              `<div style="max-width:220px"><b>${item.title}</b><br/><small>${item.description}</small><br/><a href="${item.sourceUrl}" target="_blank" rel="noreferrer">OpenHistoricalMap</a></div>`
+            );
+            layersRef.current.ohm.push(marker);
+          });
       }
     }
   }, [clearLayers, dispatch]);
