@@ -518,6 +518,48 @@ function MapView() {
             });
           });
       }
+
+      // 贸易路线 — 中国视角
+      if (ly.trade) {
+        tradeNetworks
+          .filter((t) => cy >= t.start_year && cy <= t.end_year)
+          .forEach((t) => {
+            const isChinaRoute = ["tea-horse-road"].includes(t.id);
+            if (!isChinaRoute) return;
+            t.routes.forEach((route) => {
+              const color = route.type === "overland" ? "#27ae60" : "#3498db";
+              const latlngs = route.path.map(([lng, lat]) => [lat, lng] as [number, number]);
+              const pl = L.polyline(latlngs, { color, weight: 3, opacity: 0.85, dashArray: "6, 4" }).addTo(map);
+              pl.on("click", () => {
+                dispatch({ type: "SET_YEAR", year: t.start_year });
+                dispatch({ type: "SELECT_EVENT", id: t.event_id || t.id });
+              });
+              pl.bindPopup(`<b>${t.name}</b><br/><small>${t.start_year}年—${t.end_year}年</small>`);
+              layersRef.current.trade.push(pl);
+            });
+            t.nodes.forEach((node) => {
+              const icon = L.divIcon({
+                html: `<div style="background:#fff;border:2px solid #27ae60;border-radius:50%;width:10px;height:10px;box-shadow:0 2px 4px rgba(0,0,0,0.3)"><div style="width:4px;height:4px;border-radius:50%;background:#27ae60;margin:2px auto"></div></div>`,
+                className: "", iconSize: [10, 10], iconAnchor: [5, 5],
+              });
+              const [nlng, nlat] = node.coords;
+              const m = L.marker([nlat, nlng], { icon, interactive: false }).addTo(map);
+              m.bindTooltip(node.name, { permanent: true, direction: "top", offset: [0, -8], className: "atlas-tooltip" });
+              layersRef.current.trade.push(m);
+            });
+            // 路线名称标签
+            const midIdx = Math.floor((t.routes[0]?.path?.length || 0) / 2);
+            if (t.routes[0]?.path?.[midIdx]) {
+              const [mlng, mlat] = t.routes[0].path[midIdx];
+              const nameIcon = L.divIcon({
+                html: `<div style="background:rgba(39,174,96,0.85);color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:bold;white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,0.3);pointer-events:none">${t.name}</div>`,
+                className: "", iconSize: [0, 0], iconAnchor: [0, 14],
+              });
+              const nm = L.marker([mlat, mlng], { icon: nameIcon, interactive: false }).addTo(map);
+              layersRef.current.trade.push(nm);
+            }
+          });
+      }
     }
 
     // ═══════════════════════════════════════════════

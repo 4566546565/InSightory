@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { signIn } from "next-auth/react";
+import { signInWithCredentials } from "@/lib/auth-client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -192,9 +192,9 @@ export default function LoginPage() {
     setError("");
     setIsLoading(true);
     try {
-      const result = await signIn("credentials", { email, password, redirect: false });
-      if (result?.error) {
-        setError("邮箱或密码错误，请重试");
+      const result = await signInWithCredentials(email, password);
+      if (!result.ok) {
+        setError(result.error || "邮箱或密码错误，请重试");
       } else {
         router.push("/knowledge");
         router.refresh();

@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { ThemeProvider } from "@/components/providers/theme-provider";
 import { FontSizeProvider } from "@/components/providers/font-size-provider";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { SessionProvider } from "next-auth/react";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -18,16 +17,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="zh-CN" suppressHydrationWarning>
       <body suppressHydrationWarning>
-        <SessionProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
-            <FontSizeProvider>
-              <QueryProvider>
-                {children}
-                <Toaster />
-              </QueryProvider>
-            </FontSizeProvider>
-          </ThemeProvider>
-        </SessionProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <FontSizeProvider>
+            <QueryProvider>
+              {children}
+              <Toaster />
+            </QueryProvider>
+          </FontSizeProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

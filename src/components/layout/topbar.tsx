@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react";
+import { signOutAndRedirect } from "@/lib/auth-client";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +67,6 @@ export function Topbar({ user }: { user?: { name?: string; email?: string; role?
         {/* Notifications */}
         <Button variant="ghost" size="icon" className="relative h-10 w-10 rounded-xl">
           <Bell className="h-5 w-5" />
-          <span className="absolute top-2 right-2 h-2 w-2 rounded-full bg-[hsl(var(--destructive))]" />
         </Button>
 
         {/* Theme Toggle */}
@@ -127,10 +126,7 @@ export function Topbar({ user }: { user?: { name?: string; email?: string; role?
                 <Settings className="mr-2 h-4 w-4" />设置
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={async () => {
-                await signOut({ redirect: false });
-                window.location.href = "/";
-              }} className="cursor-pointer text-[hsl(var(--destructive))]">
+              <DropdownMenuItem onClick={() => signOutAndRedirect("/")} className="cursor-pointer text-[hsl(var(--destructive))]">
                 <LogOut className="mr-2 h-4 w-4" />退出登录
               </DropdownMenuItem>
             </DropdownMenuContent>

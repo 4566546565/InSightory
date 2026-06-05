@@ -705,6 +705,7 @@ export const keyEvents = [
   // 隋唐
   { year: 589, label: "隋统一", event_id: "sui-unify", coords: [108.9, 34.2] as [number, number] },
   { year: 618, label: "唐朝建立", event_id: "tang-establishment", coords: [108.9, 34.2] as [number, number] },
+  { year: 618, label: "茶马古道", event_id: "tea-horse-road", coords: [100.23, 25.61] as [number, number] },
   { year: 627, label: "贞观之治", event_id: "zhenguan", coords: [108.9, 34.2] as [number, number] },
   { year: 713, label: "开元盛世", event_id: "kaiyuan", coords: [108.9, 34.2] as [number, number] },
   { year: 755, label: "安史之乱", event_id: "an-shi-rebellion", coords: [112.4, 34.6] as [number, number] },
@@ -731,6 +732,7 @@ export const keyEvents = [
   { year: 1921, label: "中共成立", event_id: "cpc-founding", coords: [121.5, 31.2] as [number, number] },
   { year: 1934, label: "长征·四渡赤水", event_id: "long-march", coords: [116.03, 25.88] as [number, number] },
   { year: 1945, label: "抗战胜利", event_id: "victory-anti-japan" },
+  { year: 1948, label: "三大战役", event_id: "three-campaigns", coords: [117.20, 39.13] as [number, number] },
   { year: 1949, label: "新中国成立", event_id: "prc-found", coords: [116.4, 39.9] as [number, number] },
   { year: 1978, label: "改革开放", event_id: "reform-opening", coords: [114.1, 22.5] as [number, number] },
 ];
