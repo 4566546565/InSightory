@@ -5,6 +5,8 @@ import { verifyPassword } from "@/lib/password";
 import { loginSchema } from "@/lib/validators";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  secret: process.env.AUTH_SECRET,
+  trustHost: process.env.AUTH_TRUST_HOST === "true",
   providers: [
     Credentials({
       credentials: {

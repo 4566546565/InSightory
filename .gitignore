@@ -43,6 +43,8 @@ next-env.d.ts
 /prisma/migrations/
 
 # temp files
+/.tmp/
+/.npm-cache/
 /temp_docx/
 /pdf_content.txt
 cookies.txt
