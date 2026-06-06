@@ -195,10 +195,10 @@ export default function LoginPage() {
       const result = await signInWithCredentials(email, password);
       if (!result.ok) {
         setError(result.error || "邮箱或密码错误，请重试");
-      } else {
-        router.push("/knowledge");
-        router.refresh();
+        setIsLoading(false);
       }
+      // On success, signInWithCredentials triggers a native form POST
+      // which navigates the browser — no further action needed here
     } catch {
       setError("网络错误，请稍后重试");
     } finally {

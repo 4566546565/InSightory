@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   BookOpen, Lightbulb, FileText, Clock, Map, BookMarked,
-  Headphones, FileQuestion, MessageSquare, GraduationCap, ChevronLeft, Sparkles,
+  Headphones, FileQuestion, GraduationCap, ChevronLeft, Sparkles,
   History,
 } from "lucide-react";
 
@@ -22,7 +22,6 @@ const menuItems = [
   { href: "/lectures", label: "微课资源", icon: Headphones },
   { href: "/readings", label: "拓展阅读", icon: BookMarked },
   { href: "/guides", label: "学法指导", icon: GraduationCap },
-  { href: "/community", label: "学习社区", icon: MessageSquare },
   { href: "/chat", label: "AI历史问答", icon: Sparkles },
 ];
 

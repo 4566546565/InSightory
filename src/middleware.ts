@@ -20,7 +20,6 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith("/lectures") ||
     pathname.startsWith("/readings") ||
     pathname.startsWith("/guides") ||
-    pathname.startsWith("/community") ||
     pathname.startsWith("/chat")
   ) {
     if (!user) {
@@ -40,5 +39,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/teacher/:path*", "/admin/:path*", "/profile/:path*", "/practice/:path*", "/knowledge/:path*", "/timeline/:path*", "/sources/:path*", "/themes/:path*", "/atlas/:path*", "/lectures/:path*", "/readings/:path*", "/guides/:path*", "/community/:path*", "/chat/:path*"],
+  matcher: ["/teacher/:path*", "/admin/:path*", "/profile/:path*", "/practice/:path*", "/knowledge/:path*", "/timeline/:path*", "/sources/:path*", "/themes/:path*", "/atlas/:path*", "/lectures/:path*", "/readings/:path*", "/guides/:path*", "/chat/:path*"],
 };

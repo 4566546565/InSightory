@@ -1,38 +1,73 @@
 /**
  * Client-side auth helpers — replaces next-auth/react signIn/signOut
  * to avoid SessionProvider dependency issues with React 19.
+ *
+ * Uses native browser form POST so the browser handles HttpOnly cookies
+ * (Set-Cookie / Clear-Cookie headers) correctly.
  */
+
+function submitForm(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  form.style.display = "none";
+  for (const [name, value] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = name;
+    input.value = value;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
 
 export async function signInWithCredentials(email: string, password: string) {
   const csrfRes = await fetch("/api/auth/csrf");
   const { csrfToken } = await csrfRes.json();
 
-  // redirect: "follow" lets the browser set cookies from NextAuth's 302 redirect
+  // Use fetch to check credentials first (so we can show errors)
   const res = await fetch("/api/auth/callback/credentials", {
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({ email, password, csrfToken }),
-    redirect: "follow",
+    redirect: "manual",
   });
 
-  // Check if the final URL contains an error
-  const url = new URL(res.url);
+  const location = res.headers.get("Location") || "";
+  const url = new URL(location, window.location.origin);
   const error = url.searchParams.get("error");
   if (error) {
-    return { ok: false, error: decodeURIComponent(error) };
+    return { ok: false, error: decodeURIComponent(error) || "邮箱或密码错误" };
   }
 
-  // Success — cookies are already set, navigate to knowledge
-  window.location.href = "/knowledge";
+  // Success — use native form POST so browser saves HttpOnly session cookie
+  submitForm("/api/auth/callback/credentials", { email, password, csrfToken, callbackUrl: "/knowledge" });
   return { ok: true };
 }
 
-export function signOutAndRedirect(redirectTo: string = "/") {
-  document.cookie = "authjs.session-token=; path=/; max-age=0";
-  document.cookie = "__Secure-authjs.session-token=; path=/; max-age=0";
-  document.cookie = "authjs.callback-url=; path=/; max-age=0";
-  document.cookie = "__Secure-authjs.callback-url=; path=/; max-age=0";
-  document.cookie = "authjs.csrf-token=; path=/; max-age=0";
-  document.cookie = "__Host-authjs.csrf-token=; path=/; max-age=0";
-  window.location.href = redirectTo;
+export async function signOutAndRedirect(redirectTo: string = "/") {
+  const csrfRes = await fetch("/api/auth/csrf");
+  const { csrfToken } = await csrfRes.json();
+
+  // Use native form POST — NextAuth returns Set-Cookie to clear HttpOnly cookies
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = "/api/auth/signout";
+  form.style.display = "none";
+
+  const csrfInput = document.createElement("input");
+  csrfInput.type = "hidden";
+  csrfInput.name = "csrfToken";
+  csrfInput.value = csrfToken;
+  form.appendChild(csrfInput);
+
+  const redirectInput = document.createElement("input");
+  redirectInput.type = "hidden";
+  redirectInput.name = "callbackUrl";
+  redirectInput.value = redirectTo;
+  form.appendChild(redirectInput);
+
+  document.body.appendChild(form);
+  form.submit();
 }
