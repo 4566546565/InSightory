@@ -2,8 +2,13 @@ import Link from "next/link";
 import { GitBranch } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { relationTypeLabels } from "@/lib/knowledge-expansion/knowledge-graph";
-import type { ExpansionRelationType } from "@/lib/knowledge-expansion/types";
+const relationTypeLabels: Record<string, string> = {
+  PREREQUISITE: "前置知识",
+  EXTENDS: "延伸拓展",
+  RELATED: "相关",
+  COMPARES: "对比",
+  LEADS_TO: "推导",
+};
 
 export type KnowledgeRelationItem = {
   id: string;
@@ -21,7 +26,7 @@ export type KnowledgeRelationItem = {
 };
 
 function relationLabel(type: string) {
-  return relationTypeLabels[type as ExpansionRelationType] ?? type;
+  return relationTypeLabels[type] ?? type;
 }
 
 export function KnowledgeRelations({ relations }: { relations: KnowledgeRelationItem[] }) {

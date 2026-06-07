@@ -1,0 +1,11 @@
+HTTP/1.1 302 Found
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+X-XSS-Protection: 1; mode=block
+vary: rsc, next-router-state-tree, next-router-prefetch, next-router-segment-prefetch
+location: http://localhost:3000/login?error=MissingCSRF
+Date: Mon, 01 Jun 2026 13:28:12 GMT
+Connection: keep-alive
+Keep-Alive: timeout=5
+Transfer-Encoding: chunked
+

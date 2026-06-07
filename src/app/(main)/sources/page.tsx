@@ -1,11 +1,9 @@
-import Link from "next/link";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { FileText, Image, MapIcon, BarChart3, Landmark, Database, ArrowRight } from "lucide-react";
+import { FileText, Image, MapIcon, BarChart3, Landmark } from "lucide-react";
 
 export const metadata = { title: "史料实证库" };
 
 const categories = [
-  { icon: Database, title: "开放知识源", desc: "登记 Wikidata、OpenHistoricalMap、RAGFlow 等扩充来源", count: "已配置", href: "/sources/knowledge-expansion" },
   { icon: FileText, title: "文献史料", desc: "一手记载片段，文言文配白话译文", count: "即将上线" },
   { icon: Image, title: "图像史料", desc: "历史照片、漫画、宣传画、文物图", count: "即将上线" },
   { icon: MapIcon, title: "地图素材", desc: "疆域变迁、战争路线、贸易路线", count: "即将上线" },
@@ -28,15 +26,6 @@ export default function SourcesPage() {
               </div>
               <CardTitle className="text-lg">{c.title}</CardTitle>
               <CardDescription>{c.desc}</CardDescription>
-              {c.href && (
-                <Link
-                  href={c.href}
-                  className="mt-3 inline-flex h-9 w-fit items-center justify-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm transition-colors hover:bg-primary/90"
-                >
-                    查看方案
-                    <ArrowRight className="h-4 w-4" />
-                </Link>
-              )}
             </CardHeader>
           </Card>
         ))}
