@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { signInWithCredentials } from "@/lib/auth-client";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -97,6 +97,7 @@ const EyeBall = ({ size = 48, pupilSize = 16, maxDistance = 10, eyeColor = "whit
 // ─── 主登录页面 ─────────────────────────────────────
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -114,6 +115,14 @@ export default function LoginPage() {
   const blackRef = useRef<HTMLDivElement>(null);
   const yellowRef = useRef<HTMLDivElement>(null);
   const orangeRef = useRef<HTMLDivElement>(null);
+
+  // 从 URL 读取登录失败错误码
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err === "CredentialsSignin") {
+      setError("邮箱或密码错误，请重试");
+    }
+  }, [searchParams]);
 
   // 鼠标跟踪
   useEffect(() => {
@@ -187,23 +196,13 @@ export default function LoginPage() {
   const yellowPos = calculatePosition(yellowRef);
   const orangePos = calculatePosition(orangeRef);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-    try {
-      const result = await signInWithCredentials(email, password);
-      if (!result.ok) {
-        setError(result.error || "邮箱或密码错误，请重试");
-        setIsLoading(false);
-      }
-      // On success, signInWithCredentials triggers a native form POST
-      // which navigates the browser — no further action needed here
-    } catch {
-      setError("网络错误，请稍后重试");
-    } finally {
-      setIsLoading(false);
-    }
+    signInWithCredentials(email, password);
+    // form.submit() will navigate away on success, or reload /login?error= on failure
+    // setIsLoading never needs to be reset on success because the page navigates away
   };
 
   const peeking = password.length > 0 && showPassword;
